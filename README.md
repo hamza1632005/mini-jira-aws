@@ -5,14 +5,14 @@ A simplified project management tool (Jira-like) built entirely on AWS services.
 
 ## 👥 Team Members
 
-| Member | Name | Role |
-|--------|------|------|
-| M1 | Ahmed | Cloud Architect & DevOps Lead |
-| M2 | Sara | Backend Lead — Auth & Core API |
-| M3 | Omar | Backend Dev — Tasks, Comments & S3 |
-| M4 | Nour | Serverless & Event-Driven Engineer |
-| M5 | Karim | Frontend Developer |
-| M6 | Dina | QA, Docs & Architecture Diagram |
+| Member | Name |
+|--------|------|
+| M1 | Aida Anwar |
+| M2 | Aisha Amr |
+| M3 | Hamza Essam |
+| M4 | Seif Tarek |
+| M5 | Rawan Ehab |
+| M6 | Seif Tarek |
 
 ## 🏗️ Architecture
 
