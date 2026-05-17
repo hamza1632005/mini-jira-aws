@@ -12,7 +12,7 @@ A simplified project management tool (Jira-like) built entirely on AWS services.
 | M3 | Hamza Essam |
 | M4 | Seif Tarek |
 | M5 | Rawan Ehab |
-| M6 | Seif Tarek |
+| M6 | Fares Belal |
 
 ## 🏗️ Architecture
 
