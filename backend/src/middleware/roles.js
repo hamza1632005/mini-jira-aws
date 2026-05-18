@@ -1,6 +1,6 @@
 // Allows only managers
 const requireManager = () => (req, res, next) => {
-  if (req.user['custom:role'] !== 'manager') {
+  if (req.user['custom:Role'] !== 'manager') {
     return res.status(403).json({ error: 'Manager access required' });
   }
   next();
@@ -8,7 +8,7 @@ const requireManager = () => (req, res, next) => {
 
 // Allows managers and employees
 const requireEmployee = () => (req, res, next) => {
-  const role = req.user['custom:role'];
+  const role = req.user['custom:Role'];
   if (role !== 'employee' && role !== 'manager') {
     return res.status(403).json({ error: 'Access denied' });
   }

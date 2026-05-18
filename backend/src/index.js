@@ -3,6 +3,7 @@ const cors = require('cors');
 require('dotenv').config();
 
 const auth = require('./middleware/auth');
+const authRouter = require('./routes/auth');
 const projectsRouter = require('./routes/projects');
 const tasksRouter = require('./routes/tasks');
 const commentsRouter = require('./routes/comments');
@@ -20,6 +21,7 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+app.use('/auth', authRouter);
 app.use('/projects', auth, projectsRouter);
 app.use('/tasks', auth, tasksRouter);
 app.use('/tasks', auth, commentsRouter);

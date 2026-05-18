@@ -1,15 +1,10 @@
 const express = require('express');
 const {
-  PutCommand,
-  GetCommand,
-  ScanCommand,
-  QueryCommand,
-  UpdateCommand,
-  DeleteCommand,
+  PutCommand, GetCommand, ScanCommand, QueryCommand, UpdateCommand, DeleteCommand,
 } = require('@aws-sdk/lib-dynamodb');
-const { PutObjectCommand } = require('@aws-sdk/client-s3');
-const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
+const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { S3Client } = require('@aws-sdk/client-s3');
+const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
@@ -20,20 +15,17 @@ const AUDIT_TABLE = process.env.DYNAMODB_TABLE_AUDIT_LOG;
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
 
-// Valid status transitions
 const TRANSITIONS = {
   ToDo: ['InProgress'],
   InProgress: ['InReview'],
   InReview: ['Done'],
 };
 
-// Create a task — managers only
+// POST /tasks — create a task (managers only)
 router.post('/', requireManager(), async (req, res) => {
   try {
     const { title, description, priority, deadline, assigneeId, teamId, projectId } = req.body;
-    if (!title || !teamId) {
-      return res.status(400).json({ error: 'title and teamId are required' });
-    }
+    if (!title || !teamId) return res.status(400).json({ error: 'title and teamId are required' });
 
     const task = {
       taskId: uuidv4(),
@@ -45,12 +37,13 @@ router.post('/', requireManager(), async (req, res) => {
       teamId,
       projectId: projectId || null,
       status: 'ToDo',
+      attachments: [],
       createdAt: new Date().toISOString(),
     };
 
     await docClient.send(new PutCommand({ TableName: TASKS_TABLE, Item: task }));
 
-    // TODO: Nour (M4) will add SNS publish here in T-09
+    // TODO: Nour (M4) — publish to SNS TaskAssigned-Topic here (T-09)
 
     return res.status(201).json(task);
   } catch (err) {
@@ -58,21 +51,31 @@ router.post('/', requireManager(), async (req, res) => {
   }
 });
 
-// Get tasks — managers see all, employees query by teamId GSI
+// GET /tasks — managers see all (with optional ?teamId= filter), employees see their team only
 router.get('/', async (req, res) => {
   try {
-    const role = req.user['custom:role'];
-    const teamId = req.user['custom:teamId'];
+    const role = req.user['custom:Role'];
+    const userTeamId = req.user['custom:TeamId'];
+    const { teamId } = req.query;
 
     let result;
     if (role === 'manager') {
-      result = await docClient.send(new ScanCommand({ TableName: TASKS_TABLE }));
+      if (teamId) {
+        result = await docClient.send(new QueryCommand({
+          TableName: TASKS_TABLE,
+          IndexName: 'teamId-index',
+          KeyConditionExpression: 'teamId = :teamId',
+          ExpressionAttributeValues: { ':teamId': teamId },
+        }));
+      } else {
+        result = await docClient.send(new ScanCommand({ TableName: TASKS_TABLE }));
+      }
     } else {
       result = await docClient.send(new QueryCommand({
         TableName: TASKS_TABLE,
         IndexName: 'teamId-index',
         KeyConditionExpression: 'teamId = :teamId',
-        ExpressionAttributeValues: { ':teamId': teamId },
+        ExpressionAttributeValues: { ':teamId': userTeamId },
       }));
     }
 
@@ -82,16 +85,15 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get a single task — with team isolation for employees
+// GET /tasks/:taskId — single task with team isolation
 router.get('/:taskId', async (req, res) => {
   try {
     const { taskId } = req.params;
     const result = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
-
     if (!result.Item) return res.status(404).json({ error: 'Task not found' });
 
-    const role = req.user['custom:role'];
-    if (role === 'employee' && result.Item.teamId !== req.user['custom:teamId']) {
+    const role = req.user['custom:Role'];
+    if (role === 'employee' && result.Item.teamId !== req.user['custom:TeamId']) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -101,7 +103,50 @@ router.get('/:taskId', async (req, res) => {
   }
 });
 
-// Update task status — any authenticated user, with transition validation and AuditLog
+// PATCH /tasks/:taskId — update task fields (managers only)
+router.patch('/:taskId', requireManager(), async (req, res) => {
+  try {
+    const { taskId } = req.params;
+    const { title, description, priority, deadline, assigneeId, teamId, projectId } = req.body;
+
+    const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
+    if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
+
+    const parts = [];
+    const names = {};
+    const values = { ':updatedAt': new Date().toISOString() };
+
+    if (title)                 { parts.push('#title = :title');       names['#title'] = 'title'; values[':title'] = title; }
+    if (description !== undefined) { parts.push('description = :desc');                          values[':desc'] = description; }
+    if (priority)              { parts.push('priority = :priority');                              values[':priority'] = priority; }
+    if (deadline)              { parts.push('deadline = :deadline');                              values[':deadline'] = deadline; }
+    if (assigneeId !== undefined)  { parts.push('assigneeId = :assigneeId');                     values[':assigneeId'] = assigneeId; }
+    if (teamId)                { parts.push('teamId = :teamId');                                  values[':teamId'] = teamId; }
+    if (projectId !== undefined)   { parts.push('projectId = :projectId');                       values[':projectId'] = projectId; }
+
+    if (parts.length === 0) return res.status(400).json({ error: 'No fields provided to update' });
+    parts.push('updatedAt = :updatedAt');
+
+    const updateParams = {
+      TableName: TASKS_TABLE,
+      Key: { taskId },
+      UpdateExpression: `SET ${parts.join(', ')}`,
+      ExpressionAttributeValues: values,
+      ReturnValues: 'ALL_NEW',
+    };
+    if (Object.keys(names).length > 0) updateParams.ExpressionAttributeNames = names;
+
+    const updated = await docClient.send(new UpdateCommand(updateParams));
+
+    // TODO: Nour (M4) — if assigneeId changed, publish to SNS here (T-09)
+
+    return res.status(200).json(updated.Attributes);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /tasks/:taskId/status — status transition with AuditLog
 router.patch('/:taskId/status', async (req, res) => {
   try {
     const { taskId } = req.params;
@@ -112,26 +157,19 @@ router.patch('/:taskId/status', async (req, res) => {
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
 
     const task = taskResult.Item;
-    const role = req.user['custom:role'];
+    const role = req.user['custom:Role'];
 
-    // Employees can only update tasks assigned to them
     if (role === 'employee' && task.assigneeId !== req.user.sub) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // Validate the status transition
     const allowed = TRANSITIONS[task.status] || [];
     if (!allowed.includes(status)) {
-      return res.status(400).json({
-        error: 'Invalid status transition',
-        allowed,
-        current: task.status,
-      });
+      return res.status(400).json({ error: 'Invalid status transition', allowed, current: task.status });
     }
 
     const updatedAt = new Date().toISOString();
 
-    // Update the task status
     const updateResult = await docClient.send(new UpdateCommand({
       TableName: TASKS_TABLE,
       Key: { taskId },
@@ -141,7 +179,7 @@ router.patch('/:taskId/status', async (req, res) => {
       ReturnValues: 'ALL_NEW',
     }));
 
-    // Write an AuditLog entry for this transition
+    // Write AuditLog entry for this transition
     await docClient.send(new PutCommand({
       TableName: AUDIT_TABLE,
       Item: {
@@ -160,18 +198,23 @@ router.patch('/:taskId/status', async (req, res) => {
   }
 });
 
-// Delete a task — managers only
+// DELETE /tasks/:taskId — delete task and its S3 attachments (managers only)
 router.delete('/:taskId', requireManager(), async (req, res) => {
   try {
     const { taskId } = req.params;
-
     const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
 
     await docClient.send(new DeleteCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
 
-    // TODO: add S3 DeleteObjectCommand when Nour confirms bucket names (T-04)
-    // if (taskResult.Item.s3Key) { ... }
+    // Delete all S3 attachments — silently skip if bucket not configured yet (T-04)
+    const attachments = [...(taskResult.Item.attachments || [])];
+    if (taskResult.Item.s3Key) attachments.push(taskResult.Item.s3Key);
+    for (const key of attachments) {
+      try {
+        await s3Client.send(new DeleteObjectCommand({ Bucket: process.env.S3_BUCKET_ORIGINALS, Key: key }));
+      } catch (_) {}
+    }
 
     return res.status(200).json({ message: 'Task deleted' });
   } catch (err) {
@@ -179,22 +222,24 @@ router.delete('/:taskId', requireManager(), async (req, res) => {
   }
 });
 
-// Generate a presigned S3 upload URL for a task attachment
+// GET /tasks/:taskId/upload-url — presigned S3 upload URL (keeps all versions)
 router.get('/:taskId/upload-url', async (req, res) => {
   try {
     const { taskId } = req.params;
-    const role = req.user['custom:role'];
+    const role = req.user['custom:Role'];
 
     const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
 
-    // Enforce team isolation for employees
-    if (role === 'employee' && taskResult.Item.teamId !== req.user['custom:teamId']) {
+    if (role === 'employee' && taskResult.Item.teamId !== req.user['custom:TeamId']) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
-    // TODO: add bucket name to .env when Nour confirms (T-04)
     const bucket = process.env.S3_BUCKET_ORIGINALS;
+    if (!bucket || bucket.includes('PLACEHOLDER')) {
+      return res.status(503).json({ error: 'S3 bucket not configured yet — pending Nour (T-04)' });
+    }
+
     const s3Key = `tasks/${taskId}/${Date.now()}-attachment`;
 
     const uploadUrl = await getSignedUrl(
@@ -203,12 +248,12 @@ router.get('/:taskId/upload-url', async (req, res) => {
       { expiresIn: 300 }
     );
 
-    // Store the s3Key on the task record
+    // Append new key to attachments array to keep version history
     await docClient.send(new UpdateCommand({
       TableName: TASKS_TABLE,
       Key: { taskId },
-      UpdateExpression: 'SET s3Key = :s3Key',
-      ExpressionAttributeValues: { ':s3Key': s3Key },
+      UpdateExpression: 'SET attachments = list_append(if_not_exists(attachments, :empty), :newKey), s3Key = :s3Key',
+      ExpressionAttributeValues: { ':newKey': [s3Key], ':empty': [], ':s3Key': s3Key },
     }));
 
     return res.status(200).json({ uploadUrl, s3Key });

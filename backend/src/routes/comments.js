@@ -33,8 +33,8 @@ router.post('/:taskId/comments', async (req, res) => {
 router.get('/:taskId/comments', async (req, res) => {
   try {
     const { taskId } = req.params;
-    const role = req.user['custom:role'];
-    const teamId = req.user['custom:teamId'];
+    const role = req.user['custom:Role'];
+    const teamId = req.user['custom:TeamId'];
 
     // Fetch the parent task to enforce team isolation for employees
     const taskResult = await docClient.send(new GetCommand({

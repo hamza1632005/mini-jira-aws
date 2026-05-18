@@ -43,7 +43,7 @@ router.post('/:teamId/members', requireManager(), async (req, res) => {
     await cognitoClient.send(new AdminUpdateUserAttributesCommand({
       UserPoolId: process.env.COGNITO_USER_POOL_ID,
       Username: username,
-      UserAttributes: [{ Name: 'custom:teamId', Value: teamId }],
+      UserAttributes: [{ Name: 'custom:TeamId', Value: teamId }],
     }));
 
     res.json({ success: true, username, teamId });

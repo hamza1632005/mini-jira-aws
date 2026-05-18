@@ -9,8 +9,8 @@ router.get('/me', (req, res) => {
       userId: req.user.sub,
       username: req.user.username,
       email: req.user.email,
-      role: req.user['custom:role'],
-      teamId: req.user['custom:teamId'],
+      role: req.user['custom:Role'],
+      teamId: req.user['custom:TeamId'],
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

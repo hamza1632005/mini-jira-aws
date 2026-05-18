@@ -1,5 +1,5 @@
 const express = require('express');
-const { PutCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
@@ -33,8 +33,8 @@ router.post('/', requireManager(), async (req, res) => {
 // Get all projects — managers see all, employees see their team's only
 router.get('/', async (req, res) => {
   try {
-    const role = req.user['custom:role'];
-    const teamId = req.user['custom:teamId'];
+    const role = req.user['custom:Role'];
+    const teamId = req.user['custom:TeamId'];
 
     let result;
     if (role === 'manager') {
@@ -53,6 +53,24 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Get a single project
+router.get('/:projectId', async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const result = await docClient.send(new GetCommand({ TableName: TABLE, Key: { projectId } }));
+    if (!result.Item) return res.status(404).json({ error: 'Project not found' });
+
+    const role = req.user['custom:Role'];
+    if (role === 'employee' && result.Item.teamId !== req.user['custom:TeamId']) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    return res.status(200).json(result.Item);
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 // Update a project — managers only
 router.patch('/:projectId', requireManager(), async (req, res) => {
   try {
@@ -64,14 +82,16 @@ router.patch('/:projectId', requireManager(), async (req, res) => {
     }
 
     const updateParts = [];
+    const exprNames = {};
     const exprValues = {};
-    if (name) { updateParts.push('name = :name'); exprValues[':name'] = name; }
+    if (name) { updateParts.push('#n = :name'); exprNames['#n'] = 'name'; exprValues[':name'] = name; }
     if (description) { updateParts.push('description = :description'); exprValues[':description'] = description; }
 
     const result = await docClient.send(new UpdateCommand({
       TableName: TABLE,
       Key: { projectId },
       UpdateExpression: `SET ${updateParts.join(', ')}`,
+      ExpressionAttributeNames: exprNames,
       ExpressionAttributeValues: exprValues,
       ReturnValues: 'ALL_NEW',
     }));
