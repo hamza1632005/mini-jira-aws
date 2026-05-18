@@ -32,13 +32,13 @@ router.post('/', requireManager(), async (req, res) => {
       title,
       description: description || '',
       priority: priority || 'Medium',
-      deadline: deadline || null,
-      assigneeId: assigneeId || null,
       teamId,
-      projectId: projectId || null,
       status: 'ToDo',
       attachments: [],
       createdAt: new Date().toISOString(),
+      ...(deadline && { deadline }),
+      ...(assigneeId && { assigneeId }),
+      ...(projectId && { projectId }),
     };
 
     await docClient.send(new PutCommand({ TableName: TASKS_TABLE, Item: task }));
