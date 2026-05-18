@@ -6,6 +6,8 @@ const auth = require('./middleware/auth');
 const projectsRouter = require('./routes/projects');
 const tasksRouter = require('./routes/tasks');
 const commentsRouter = require('./routes/comments');
+const teamsRouter = require('./routes/teams');
+const usersRouter = require('./routes/users');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +23,8 @@ app.get('/health', (req, res) => {
 app.use('/projects', auth, projectsRouter);
 app.use('/tasks', auth, tasksRouter);
 app.use('/tasks', auth, commentsRouter);
+app.use('/teams', auth, teamsRouter);
+app.use('/users', auth, usersRouter);
 
 // 404 handler
 app.use((req, res) => {
