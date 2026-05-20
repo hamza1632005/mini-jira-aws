@@ -180,4 +180,4 @@ Thumbs.db
 *.swp
 
 # Lambda deployment packages
-*.zip
+*.zipbackend/.env

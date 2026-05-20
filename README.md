@@ -76,3 +76,7 @@ See `.env.example` for all required variables.
 
 ---
 **Deadline:** 22 May 2026 | **Course:** ICS608 Cloud Computing
+
+## 🔑 cloudfront
+
+http://d1grae8znyykb3.cloudfront.net
