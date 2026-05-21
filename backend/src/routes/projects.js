@@ -3,6 +3,7 @@ const { PutCommand, GetCommand, ScanCommand, UpdateCommand, DeleteCommand } = re
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
+const { resolveTeamId } = require('../utils/resolveTeamId');
 
 const router = express.Router();
 const TABLE = process.env.DYNAMODB_TABLE_PROJECTS;
@@ -34,17 +35,19 @@ router.post('/', requireManager(), async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const role = req.user['custom:Role'];
-    const teamId = req.user['custom:TeamId'];
+    const teamId = await resolveTeamId(req.user['custom:TeamId']);
 
     let result;
     if (role === 'manager') {
       result = await docClient.send(new ScanCommand({ TableName: TABLE }));
-    } else {
+    } else if (teamId) {
       result = await docClient.send(new ScanCommand({
         TableName: TABLE,
         FilterExpression: 'teamId = :teamId',
         ExpressionAttributeValues: { ':teamId': teamId },
       }));
+    } else {
+      result = { Items: [] };
     }
 
     return res.status(200).json(result.Items || []);
@@ -61,7 +64,8 @@ router.get('/:projectId', async (req, res) => {
     if (!result.Item) return res.status(404).json({ error: 'Project not found' });
 
     const role = req.user['custom:Role'];
-    if (role === 'employee' && result.Item.teamId !== req.user['custom:TeamId']) {
+    const userTeamId = await resolveTeamId(req.user['custom:TeamId']);
+    if (role !== 'manager' && result.Item.teamId !== userTeamId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

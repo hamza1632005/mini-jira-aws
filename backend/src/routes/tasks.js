@@ -8,6 +8,7 @@ const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
+const { resolveTeamId } = require('../utils/resolveTeamId');
 
 const router = express.Router();
 const TASKS_TABLE = process.env.DYNAMODB_TABLE_TASKS;
@@ -55,28 +56,31 @@ router.post('/', requireManager(), async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const role = req.user['custom:Role'];
-    const userTeamId = req.user['custom:TeamId'];
+    const userTeamId = await resolveTeamId(req.user['custom:TeamId']);
     const { teamId } = req.query;
 
     let result;
     if (role === 'manager') {
       if (teamId) {
+        const filterTeamId = await resolveTeamId(teamId);
         result = await docClient.send(new QueryCommand({
           TableName: TASKS_TABLE,
           IndexName: 'teamId-index',
           KeyConditionExpression: 'teamId = :teamId',
-          ExpressionAttributeValues: { ':teamId': teamId },
+          ExpressionAttributeValues: { ':teamId': filterTeamId },
         }));
       } else {
         result = await docClient.send(new ScanCommand({ TableName: TASKS_TABLE }));
       }
-    } else {
+    } else if (userTeamId) {
       result = await docClient.send(new QueryCommand({
         TableName: TASKS_TABLE,
         IndexName: 'teamId-index',
         KeyConditionExpression: 'teamId = :teamId',
         ExpressionAttributeValues: { ':teamId': userTeamId },
       }));
+    } else {
+      result = { Items: [] };
     }
 
     return res.status(200).json(result.Items || []);
@@ -93,7 +97,8 @@ router.get('/:taskId', async (req, res) => {
     if (!result.Item) return res.status(404).json({ error: 'Task not found' });
 
     const role = req.user['custom:Role'];
-    if (role === 'employee' && result.Item.teamId !== req.user['custom:TeamId']) {
+    const userTeamId = await resolveTeamId(req.user['custom:TeamId']);
+    if (role !== 'manager' && result.Item.teamId !== userTeamId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -159,7 +164,7 @@ router.patch('/:taskId/status', async (req, res) => {
     const task = taskResult.Item;
     const role = req.user['custom:Role'];
 
-    if (role === 'employee' && task.assigneeId !== req.user.sub) {
+    if (role !== 'manager' && task.assigneeId !== req.user.sub) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -231,7 +236,8 @@ router.get('/:taskId/upload-url', async (req, res) => {
     const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
 
-    if (role === 'employee' && taskResult.Item.teamId !== req.user['custom:TeamId']) {
+    const userTeamId = await resolveTeamId(req.user['custom:TeamId']);
+    if (role !== 'manager' && taskResult.Item.teamId !== userTeamId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 

@@ -127,7 +127,7 @@ export function CreateTaskForm({
       </select>
       <input
         type="text"
-        placeholder="Assignee ID (Cognito sub)"
+        placeholder="Assignee ID"
         value={assigneeId}
         onChange={(e) => setAssigneeId(e.target.value)}
         className={inputClass}

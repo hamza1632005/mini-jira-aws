@@ -2,6 +2,7 @@ const express = require('express');
 const { PutCommand, ScanCommand, GetCommand } = require('@aws-sdk/lib-dynamodb');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
+const { resolveTeamId } = require('../utils/resolveTeamId');
 
 const router = express.Router({ mergeParams: true });
 const COMMENTS_TABLE = process.env.DYNAMODB_TABLE_COMMENTS;
@@ -34,7 +35,7 @@ router.get('/:taskId/comments', async (req, res) => {
   try {
     const { taskId } = req.params;
     const role = req.user['custom:Role'];
-    const teamId = req.user['custom:TeamId'];
+    const teamId = await resolveTeamId(req.user['custom:TeamId']);
 
     // Fetch the parent task to enforce team isolation for employees
     const taskResult = await docClient.send(new GetCommand({
@@ -44,7 +45,7 @@ router.get('/:taskId/comments', async (req, res) => {
 
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
 
-    if (role === 'employee' && taskResult.Item.teamId !== teamId) {
+    if (role !== 'manager' && taskResult.Item.teamId !== teamId) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
