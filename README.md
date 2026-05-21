@@ -52,8 +52,10 @@ npm run dev
 ### Frontend Setup
 \`\`\`bash
 cd frontend
+cp .env.example .env.local
+# Set NEXT_PUBLIC_API_URL (localhost:3000 for local dev)
 npm install
-npm run dev
+npm run dev   # runs on http://localhost:3001
 \`\`\`
 
 ## 🎬 Demo Scenario
