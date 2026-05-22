@@ -212,7 +212,7 @@ The following works on demo day **without any code changes**:
 
 ## 🎥 Demo Video
 
-> 🚧 **TODO:** Add demo video link (YouTube unlisted or Google Drive) before the **22 May 2026** deadline.
+> 🚧 (https://drive.google.com/drive/folders/1HyOrz12JBFQD9Va1AIMq0jkCOgGyIaNN?usp=sharing)
 
 ---
 
