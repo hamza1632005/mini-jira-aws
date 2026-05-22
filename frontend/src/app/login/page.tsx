@@ -2,9 +2,14 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { toast } from "sonner";
-import { inputClass, labelClass } from "@/lib/styles";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Kanban, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const { login, loading, token, user } = useAuth();
@@ -33,53 +38,58 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-zinc-900">Mini Jira</h1>
-        <p className="mt-1 text-sm text-zinc-600">Sign in with your Cognito account</p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="username" className={labelClass}>
-              Username
-            </label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className={labelClass}>
-              Password
-            </label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting ? "Signing in…" : "Sign in"}
-          </button>
-          <p className="text-center text-sm text-zinc-600">
-            Don&apos;t have an account?{" "}
-            <a href="/register" className="font-medium text-blue-600 hover:underline">
-              Register
-            </a>
-          </p>
-        </form>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 px-4">
+      <div className="mb-8 flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
+          <Kanban className="h-5 w-5" />
+        </div>
+        <span className="text-2xl font-bold text-foreground">Mini Jira</span>
       </div>
+
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-2xl font-bold">Welcome back</CardTitle>
+          <CardDescription>Sign in to your account to continue</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input
+                id="username"
+                type="text"
+                placeholder="Enter your username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3 pt-2">
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing in…</> : "Sign in"}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="font-medium text-primary hover:underline">
+                Register
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 }

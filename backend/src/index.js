@@ -21,12 +21,12 @@ app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.use('/auth', authRouter);
-app.use('/projects', auth, projectsRouter);
-app.use('/tasks', auth, tasksRouter);
-app.use('/tasks', auth, commentsRouter);
-app.use('/teams', auth, teamsRouter);
-app.use('/users', auth, usersRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/projects', auth, projectsRouter);
+app.use('/api/tasks', auth, tasksRouter);
+app.use('/api/tasks', auth, commentsRouter);
+app.use('/api/teams', auth, teamsRouter);
+app.use('/api/users', auth, usersRouter);
 
 // 404 handler
 app.use((req, res) => {

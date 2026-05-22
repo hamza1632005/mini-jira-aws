@@ -2,9 +2,14 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
-import { inputClass, labelClass } from "@/lib/styles";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Kanban, Loader2 } from "lucide-react";
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -18,13 +23,7 @@ export default function RegisterPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.register({
-        username,
-        password,
-        email,
-        role: "employee",
-        teamId: teamId || undefined,
-      });
+      await api.register({ username, password, email, role: "employee", teamId: teamId || undefined });
       toast.success("Account created — you can now sign in");
       router.push("/login");
     } catch (err) {
@@ -35,71 +34,53 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center bg-zinc-50 px-4">
-      <div className="w-full max-w-md rounded-xl border border-zinc-200 bg-white p-8 shadow-sm">
-        <h1 className="text-2xl font-bold text-zinc-900">Create Account</h1>
-        <p className="mt-1 text-sm text-zinc-600">Register a new Cognito user</p>
-
-        <form onSubmit={handleSubmit} className="mt-6 space-y-4">
-          <div>
-            <label htmlFor="username" className={labelClass}>Username</label>
-            <input
-              id="username"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="email" className={labelClass}>Email</label>
-            <input
-              id="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className={labelClass}>Password</label>
-            <input
-              id="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={`mt-1 ${inputClass}`}
-              required
-            />
-          </div>
-          <div>
-            <label htmlFor="teamId" className={labelClass}>Team ID <span className="font-normal text-zinc-500">(optional)</span></label>
-            <input
-              id="teamId"
-              type="text"
-              value={teamId}
-              onChange={(e) => setTeamId(e.target.value)}
-              placeholder="Leave blank to assign later"
-              className={`mt-1 ${inputClass}`}
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-lg bg-blue-600 py-2.5 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-          >
-            {submitting ? "Creating…" : "Create Account"}
-          </button>
-          <p className="text-center text-sm text-zinc-600">
-            Already have an account?{" "}
-            <a href="/login" className="font-medium text-blue-600 hover:underline">
-              Sign in
-            </a>
-          </p>
-        </form>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-gradient-to-br from-slate-100 via-blue-50 to-indigo-100 px-4">
+      <div className="mb-8 flex items-center gap-2">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-lg">
+          <Kanban className="h-5 w-5" />
+        </div>
+        <span className="text-2xl font-bold text-foreground">Mini Jira</span>
       </div>
+
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="space-y-1 pb-4">
+          <CardTitle className="text-2xl font-bold">Create an account</CardTitle>
+          <CardDescription>Register as an employee to get started</CardDescription>
+        </CardHeader>
+        <form onSubmit={handleSubmit}>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="username">Username</Label>
+              <Input id="username" type="text" placeholder="Choose a username" value={username} onChange={(e) => setUsername(e.target.value)} required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input id="email" type="email" placeholder="you@example.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input id="password" type="password" placeholder="Create a password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="teamId">
+                Team ID <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input id="teamId" type="text" placeholder="Leave blank — assign later" value={teamId} onChange={(e) => setTeamId(e.target.value)} />
+            </div>
+          </CardContent>
+          <CardFooter className="flex flex-col gap-3 pt-2">
+            <Button type="submit" className="w-full" disabled={submitting}>
+              {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Creating…</> : "Create Account"}
+            </Button>
+            <p className="text-sm text-muted-foreground text-center">
+              Already have an account?{" "}
+              <Link href="/login" className="font-medium text-primary hover:underline">
+                Sign in
+              </Link>
+            </p>
+          </CardFooter>
+        </form>
+      </Card>
     </div>
   );
 }
