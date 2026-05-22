@@ -15,7 +15,7 @@
 
 <br>
 
-**[🌐 Live Demo](http://d1grae8znyykb3.cloudfront.net)** · **[🏗️ Architecture](#️-architecture)** · **[🎬 Demo Scenario](#-demo-scenario)** · **[⚙️ Setup](#️-setup--installation)**
+
 
 </div>
 
@@ -43,21 +43,6 @@ Beyond standard CRUD, the system exercises a genuinely cloud-native architecture
 >
 > Clicking the link opens the live application directly — no additional configuration required.
 
----
-
-## 📑 Table of Contents
-
-- [Overview](#-overview)
-- [Live Application](#-live-application)
-- [Architecture](#️-architecture)
-- [Tech Stack](#-tech-stack)
-- [Team](#-team)
-- [Repository Structure](#-repository-structure)
-- [Setup & Installation](#️-setup--installation)
-- [Environment Variables](#-environment-variables)
-- [Deployment](#-deployment)
-- [Demo Scenario](#-demo-scenario)
-- [Demo Video](#-demo-video)
 
 ---
 
@@ -67,7 +52,7 @@ The application is deployed across two Availability Zones (`us-east-1a` and `us-
 
 <div align="center">
 
-![Mini-Jira AWS Architecture](docs/architecture.png)
+![Mini-Jira AWS Architecture](docs/AWS%20Mini-Jira%20Project%20Architecture.pdf)
 
 </div>
 
