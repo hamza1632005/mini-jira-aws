@@ -227,7 +227,7 @@ export function TaskDetailModal({ task, token, onClose, onUpdated, onDeleted }: 
                   <div className="space-y-1.5">
                     <Label>Priority</Label>
                     <Select value={editPriority} onValueChange={(v) => setEditPriority(v ?? "Medium")}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectTrigger><SelectValue>{editPriority === "High" ? "🔴 High" : editPriority === "Low" ? "🟢 Low" : "🟡 Medium"}</SelectValue></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="High">🔴 High</SelectItem>
                         <SelectItem value="Medium">🟡 Medium</SelectItem>

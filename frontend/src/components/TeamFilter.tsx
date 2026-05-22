@@ -16,7 +16,7 @@ export function TeamFilter({ teams, selectedTeamId, onChange }: TeamFilterProps)
       <Filter className="h-4 w-4 text-muted-foreground" />
       <Select value={selectedTeamId} onValueChange={(v) => onChange(v ?? "")}>
         <SelectTrigger className="w-44 h-9 text-sm">
-          <SelectValue placeholder="All teams" />
+          <SelectValue placeholder="All teams">{selectedTeamId ? (teams.find(t => t.teamId === selectedTeamId)?.name ?? "All teams") : "All teams"}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="">All teams</SelectItem>

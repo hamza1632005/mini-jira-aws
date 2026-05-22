@@ -126,14 +126,19 @@ router.get('/:taskId', async (req, res) => {
   }
 });
 
-// PATCH /tasks/:taskId — update task fields (managers only)
-router.patch('/:taskId', requireManager(), async (req, res) => {
+// PATCH /tasks/:taskId — update task fields (managers always; employees only for their assigned tasks)
+router.patch('/:taskId', async (req, res) => {
   try {
     const { taskId } = req.params;
     const { title, description, priority, deadline, assigneeId, assigneeUsername, teamId, projectId } = req.body;
 
     const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
+
+    const role = req.user['custom:Role'];
+    if (role !== 'manager' && taskResult.Item.assigneeId !== req.user.sub) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
 
     const parts = [];
     const names = {};

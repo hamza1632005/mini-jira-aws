@@ -84,7 +84,7 @@ export function CreateTaskForm({ token, teams, projects, onCreated }: CreateTask
             <div className="space-y-1.5">
               <Label>Priority</Label>
               <Select value={priority} onValueChange={(v) => setPriority(v ?? "Medium")}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger><SelectValue>{priority === "High" ? "🔴 High" : priority === "Low" ? "🟢 Low" : "🟡 Medium"}</SelectValue></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="High">🔴 High</SelectItem>
                   <SelectItem value="Medium">🟡 Medium</SelectItem>
@@ -100,7 +100,7 @@ export function CreateTaskForm({ token, teams, projects, onCreated }: CreateTask
           <div className="space-y-1.5">
             <Label>Team <span className="text-destructive">*</span></Label>
             <Select value={teamId} onValueChange={(v) => { setTeamId(v ?? ""); setProjectId(""); setAssigneeUserId(""); }} required>
-              <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select team">{teamId ? teams.find(t => t.teamId === teamId)?.name : undefined}</SelectValue></SelectTrigger>
               <SelectContent>
                 {teams.map((t) => <SelectItem key={t.teamId} value={t.teamId}>{t.name}</SelectItem>)}
               </SelectContent>
@@ -109,7 +109,7 @@ export function CreateTaskForm({ token, teams, projects, onCreated }: CreateTask
           <div className="space-y-1.5">
             <Label>Project</Label>
             <Select value={projectId} onValueChange={(v) => setProjectId(v ?? "")} disabled={!teamId}>
-              <SelectTrigger><SelectValue placeholder="No project" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="No project">{projectId ? (teamProjects.find(p => p.projectId === projectId)?.name ?? "No project") : "No project"}</SelectValue></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No project</SelectItem>
                 {teamProjects.map((p) => <SelectItem key={p.projectId} value={p.projectId}>{p.name}</SelectItem>)}
@@ -119,7 +119,7 @@ export function CreateTaskForm({ token, teams, projects, onCreated }: CreateTask
           <div className="space-y-1.5">
             <Label>Assignee</Label>
             <Select value={assigneeUserId} onValueChange={(v) => setAssigneeUserId(v ?? "")} disabled={!teamId}>
-              <SelectTrigger><SelectValue placeholder={teamId ? "No assignee" : "Select a team first"} /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder={teamId ? "No assignee" : "Select a team first"}>{assigneeUserId ? (members.find(m => m.userId === assigneeUserId)?.email ?? "No assignee") : (teamId ? "No assignee" : "Select a team first")}</SelectValue></SelectTrigger>
               <SelectContent>
                 <SelectItem value="">No assignee</SelectItem>
                 {members.map((m) => <SelectItem key={m.userId} value={m.userId}>{m.email}</SelectItem>)}

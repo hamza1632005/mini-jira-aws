@@ -1,6 +1,7 @@
 const express = require('express');
 const { PutCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
 const { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand, ListUsersCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { AdminGetUserCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
@@ -57,6 +58,29 @@ router.get('/:teamId/members', async (req, res) => {
     } while (paginationToken);
 
     res.json(members);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Remove a member from a team — managers only
+router.delete('/:teamId/members/:userId', requireManager(), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const result = await cognitoClient.send(new ListUsersCommand({
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      Filter: `sub = "${userId}"`,
+      Limit: 1,
+    }));
+    const user = result.Users?.[0];
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await cognitoClient.send(new AdminUpdateUserAttributesCommand({
+      UserPoolId: process.env.COGNITO_USER_POOL_ID,
+      Username: user.Username,
+      UserAttributes: [{ Name: 'custom:TeamId', Value: '' }],
+    }));
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

@@ -73,7 +73,7 @@ export function CreateProjectForm({ token, teams, projects, onCreated, onUpdated
           <div className="space-y-1.5">
             <Label>Team <span className="text-destructive">*</span></Label>
             <Select value={teamId} onValueChange={(v) => setTeamId(v ?? "")} required>
-              <SelectTrigger><SelectValue placeholder="Select team" /></SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select team">{teamId ? teams.find(t => t.teamId === teamId)?.name : undefined}</SelectValue></SelectTrigger>
               <SelectContent>{teams.map((t) => <SelectItem key={t.teamId} value={t.teamId}>{t.name}</SelectItem>)}</SelectContent>
             </Select>
           </div>

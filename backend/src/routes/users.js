@@ -5,6 +5,30 @@ const { resolveTeamId } = require('../utils/resolveTeamId');
 const router = express.Router();
 const cognitoClient = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || 'us-east-1' });
 
+// GET /users — list all employees
+router.get('/', async (req, res) => {
+  try {
+    const users = [];
+    let paginationToken;
+    do {
+      const result = await cognitoClient.send(new ListUsersCommand({
+        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        ...(paginationToken && { PaginationToken: paginationToken }),
+      }));
+      for (const u of result.Users || []) {
+        const attrs = Object.fromEntries(u.Attributes.map((a) => [a.Name, a.Value]));
+        if (attrs['custom:Role'] === 'employee') {
+          users.push({ userId: attrs.sub, username: u.Username, email: attrs.email, teamId: attrs['custom:TeamId'] || null });
+        }
+      }
+      paginationToken = result.PaginationToken;
+    } while (paginationToken);
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /users/me — return current user profile from Cognito token claims
 router.get('/me', async (req, res) => {
   try {

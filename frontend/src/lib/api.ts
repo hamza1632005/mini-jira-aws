@@ -247,6 +247,26 @@ export async function addTeamMember(
   });
 }
 
+export async function removeTeamMember(
+  token: string,
+  teamId: string,
+  userId: string
+) {
+  return request<{ success: boolean }>(
+    `/teams/${teamId}/members/${userId}`,
+    token,
+    { method: "DELETE" }
+  );
+}
+
+export async function getAllEmployees(token: string) {
+  return request<{ userId: string; username: string; email: string; teamId: string | null }[]>(
+    "/users",
+    token,
+    {}
+  );
+}
+
 export async function register(body: {
   username: string;
   password: string;
