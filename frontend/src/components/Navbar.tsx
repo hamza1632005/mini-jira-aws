@@ -1,10 +1,23 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import * as api from "@/lib/api";
 
 export function Navbar() {
-  const { user, isManager, logout } = useAuth();
+  const { user, token, isManager, logout } = useAuth();
+  const [teamName, setTeamName] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!token || !user?.teamId) { setTeamName(null); return; }
+    api.getTeams(token)
+      .then((teams) => {
+        const match = teams.find((t) => t.teamId === user.teamId);
+        setTeamName(match?.name ?? null);
+      })
+      .catch(() => setTeamName(null));
+  }, [token, user?.teamId]);
 
   return (
     <header className="border-b border-zinc-200 bg-white">
@@ -26,12 +39,17 @@ export function Navbar() {
         </div>
         <div className="flex items-center gap-4">
           {user && (
-            <span className="text-sm font-medium text-zinc-800">
-              {user.username}{" "}
+            <div className="flex items-center gap-2 text-sm">
+              <span className="font-medium text-zinc-800">{user.username}</span>
               <span className="rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold capitalize text-blue-900">
                 {user.role}
               </span>
-            </span>
+              {teamName && (
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-semibold text-zinc-600">
+                  {teamName}
+                </span>
+              )}
+            </div>
           )}
           <button
             onClick={logout}

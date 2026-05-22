@@ -13,6 +13,7 @@ import { KanbanView } from "@/components/KanbanView";
 import { TeamFilter } from "@/components/TeamFilter";
 import { CreateTaskForm } from "@/components/CreateTaskForm";
 import { CreateProjectForm } from "@/components/CreateProjectForm";
+import { ManageTeamForm } from "@/components/ManageTeamForm";
 import { useAuth } from "@/context/AuthContext";
 
 export default function DashboardPage() {
@@ -49,6 +50,14 @@ export default function DashboardPage() {
     setProjects((prev) => [...prev, project]);
   }
 
+  function handleProjectUpdated(project: Project) {
+    setProjects((prev) => prev.map((p) => (p.projectId === project.projectId ? project : p)));
+  }
+
+  function handleProjectDeleted(projectId: string) {
+    setProjects((prev) => prev.filter((p) => p.projectId !== projectId));
+  }
+
   return (
     <ProtectedRoute managerOnly>
       <Navbar />
@@ -73,7 +82,17 @@ export default function DashboardPage() {
             <CreateProjectForm
               token={token!}
               teams={teams}
+              projects={projects}
               onCreated={handleProjectCreated}
+              onUpdated={handleProjectUpdated}
+              onDeleted={handleProjectDeleted}
+            />
+            <ManageTeamForm
+              token={token!}
+              teams={teams}
+              onTeamCreated={(team) => setTeams((prev) => [...prev, team])}
+              onTeamUpdated={(team) => setTeams((prev) => prev.map((t) => (t.teamId === team.teamId ? team : t)))}
+              onTeamDeleted={(teamId) => setTeams((prev) => prev.filter((t) => t.teamId !== teamId))}
             />
 
             <div className="rounded-xl border border-zinc-200 bg-white p-4">

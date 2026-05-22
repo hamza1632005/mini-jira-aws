@@ -16,6 +16,7 @@ export interface Task {
   status: TaskStatus;
   teamId: string;
   assigneeId?: string;
+  assigneeUsername?: string;
   projectId?: string;
   deadline?: string;
   attachments?: string[];

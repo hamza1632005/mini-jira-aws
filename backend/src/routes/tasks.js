@@ -30,7 +30,7 @@ const TRANSITIONS = {
 // POST /tasks — create a task (managers only)
 router.post('/', requireManager(), async (req, res) => {
   try {
-    const { title, description, priority, deadline, assigneeId, teamId, projectId } = req.body;
+    const { title, description, priority, deadline, assigneeId, assigneeUsername, teamId, projectId } = req.body;
     if (!title || !teamId) return res.status(400).json({ error: 'title and teamId are required' });
 
     const task = {
@@ -44,6 +44,7 @@ router.post('/', requireManager(), async (req, res) => {
       createdAt: new Date().toISOString(),
       ...(deadline && { deadline }),
       ...(assigneeId && { assigneeId }),
+      ...(assigneeUsername && { assigneeUsername }),
       ...(projectId && { projectId }),
     };
 
@@ -52,7 +53,7 @@ router.post('/', requireManager(), async (req, res) => {
     // TODO: Nour (M4) — publish to SNS TaskAssigned-Topic here (T-09) DONE!!!
 
     if (assigneeId) {
-      await snsClient.send(new PublishCommand({
+      snsClient.send(new PublishCommand({
         TopicArn: process.env.SNS_TOPIC_ARN,
         Subject: 'New Task Assigned',
         Message: JSON.stringify({
@@ -60,7 +61,7 @@ router.post('/', requireManager(), async (req, res) => {
           assigneeId,
           teamId,
         }),
-      }));
+      })).catch(() => {});
     }
 
     return res.status(201).json(task);
@@ -129,7 +130,7 @@ router.get('/:taskId', async (req, res) => {
 router.patch('/:taskId', requireManager(), async (req, res) => {
   try {
     const { taskId } = req.params;
-    const { title, description, priority, deadline, assigneeId, teamId, projectId } = req.body;
+    const { title, description, priority, deadline, assigneeId, assigneeUsername, teamId, projectId } = req.body;
 
     const taskResult = await docClient.send(new GetCommand({ TableName: TASKS_TABLE, Key: { taskId } }));
     if (!taskResult.Item) return res.status(404).json({ error: 'Task not found' });
@@ -138,13 +139,14 @@ router.patch('/:taskId', requireManager(), async (req, res) => {
     const names = {};
     const values = { ':updatedAt': new Date().toISOString() };
 
-    if (title)                 { parts.push('#title = :title');       names['#title'] = 'title'; values[':title'] = title; }
-    if (description !== undefined) { parts.push('description = :desc');                          values[':desc'] = description; }
-    if (priority)              { parts.push('priority = :priority');                              values[':priority'] = priority; }
-    if (deadline)              { parts.push('deadline = :deadline');                              values[':deadline'] = deadline; }
-    if (assigneeId !== undefined)  { parts.push('assigneeId = :assigneeId');                     values[':assigneeId'] = assigneeId; }
-    if (teamId)                { parts.push('teamId = :teamId');                                  values[':teamId'] = teamId; }
-    if (projectId !== undefined)   { parts.push('projectId = :projectId');                       values[':projectId'] = projectId; }
+    if (title)                    { parts.push('#title = :title');           names['#title'] = 'title'; values[':title'] = title; }
+    if (description !== undefined){ parts.push('description = :desc');                                  values[':desc'] = description; }
+    if (priority)                 { parts.push('priority = :priority');                                  values[':priority'] = priority; }
+    if (deadline)                 { parts.push('deadline = :deadline');                                  values[':deadline'] = deadline; }
+    if (assigneeId !== undefined) { parts.push('assigneeId = :assigneeId');                             values[':assigneeId'] = assigneeId; }
+    if (assigneeUsername !== undefined) { parts.push('assigneeUsername = :assigneeUsername');            values[':assigneeUsername'] = assigneeUsername; }
+    if (teamId)                   { parts.push('teamId = :teamId');                                      values[':teamId'] = teamId; }
+    if (projectId !== undefined)  { parts.push('projectId = :projectId');                               values[':projectId'] = projectId; }
 
     if (parts.length === 0) return res.status(400).json({ error: 'No fields provided to update' });
     parts.push('updatedAt = :updatedAt');
@@ -166,7 +168,7 @@ router.patch('/:taskId', requireManager(), async (req, res) => {
       assigneeId !== undefined &&
       assigneeId !== taskResult.Item.assigneeId
     ) {
-      await snsClient.send(new PublishCommand({
+      snsClient.send(new PublishCommand({
         TopicArn: process.env.SNS_TOPIC_ARN,
         Subject: 'Task Reassigned',
         Message: JSON.stringify({
@@ -174,7 +176,7 @@ router.patch('/:taskId', requireManager(), async (req, res) => {
           assigneeId,
           teamId: updated.Attributes.teamId,
         }),
-      }));
+      })).catch(() => {});
     }
 
 

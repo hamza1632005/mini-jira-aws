@@ -1,6 +1,6 @@
 const express = require('express');
-const { PutCommand, ScanCommand } = require('@aws-sdk/lib-dynamodb');
-const { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand } = require('@aws-sdk/client-cognito-identity-provider');
+const { PutCommand, ScanCommand, UpdateCommand, DeleteCommand } = require('@aws-sdk/lib-dynamodb');
+const { CognitoIdentityProviderClient, AdminUpdateUserAttributesCommand, ListUsersCommand } = require('@aws-sdk/client-cognito-identity-provider');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
 const { requireManager } = require('../middleware/roles');
@@ -28,6 +28,68 @@ router.get('/', async (req, res) => {
   try {
     const result = await docClient.send(new ScanCommand({ TableName: TABLE }));
     res.json(result.Items || []);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get members of a team
+router.get('/:teamId/members', async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const members = [];
+    let paginationToken;
+
+    do {
+      const result = await cognitoClient.send(new ListUsersCommand({
+        UserPoolId: process.env.COGNITO_USER_POOL_ID,
+        ...(paginationToken && { PaginationToken: paginationToken }),
+      }));
+
+      for (const u of result.Users || []) {
+        const attrs = Object.fromEntries(u.Attributes.map((a) => [a.Name, a.Value]));
+        if (attrs['custom:TeamId'] === teamId) {
+          members.push({ userId: attrs.sub, username: u.Username, email: attrs.email });
+        }
+      }
+
+      paginationToken = result.PaginationToken;
+    } while (paginationToken);
+
+    res.json(members);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Rename a team — managers only
+router.patch('/:teamId', requireManager(), async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'name is required' });
+
+    const result = await docClient.send(new UpdateCommand({
+      TableName: TABLE,
+      Key: { teamId },
+      UpdateExpression: 'SET #n = :name',
+      ExpressionAttributeNames: { '#n': 'name' },
+      ExpressionAttributeValues: { ':name': name },
+      ReturnValues: 'ALL_NEW',
+    }));
+
+    res.json(result.Attributes);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete a team — managers only
+router.delete('/:teamId', requireManager(), async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    await docClient.send(new DeleteCommand({ TableName: TABLE, Key: { teamId } }));
+    res.json({ message: 'Team deleted' });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

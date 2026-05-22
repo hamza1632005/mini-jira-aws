@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { toast } from "sonner";
 import * as api from "@/lib/api";
 import type { Project, Task, Team } from "@/lib/types";
@@ -11,6 +11,12 @@ interface CreateTaskFormProps {
   teams: Team[];
   projects: Project[];
   onCreated: (task: Task) => void;
+}
+
+interface Member {
+  userId: string;
+  username: string;
+  email: string;
 }
 
 export function CreateTaskForm({
@@ -25,10 +31,18 @@ export function CreateTaskForm({
   const [deadline, setDeadline] = useState("");
   const [teamId, setTeamId] = useState("");
   const [projectId, setProjectId] = useState("");
-  const [assigneeId, setAssigneeId] = useState("");
+  const [assigneeUserId, setAssigneeUserId] = useState("");
+  const [members, setMembers] = useState<Member[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
   const teamProjects = projects.filter((p) => !teamId || p.teamId === teamId);
+
+  useEffect(() => {
+    if (!teamId) { setMembers([]); setAssigneeUserId(""); return; }
+    api.getTeamMembers(token, teamId)
+      .then(setMembers)
+      .catch(() => setMembers([]));
+  }, [teamId, token]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -38,13 +52,16 @@ export function CreateTaskForm({
     }
     setSubmitting(true);
     try {
+      const selectedMember = members.find((m) => m.userId === assigneeUserId);
+
       const task = await api.createTask(token, {
         title,
         description: description || undefined,
         priority,
         deadline: deadline || undefined,
         teamId,
-        assigneeId: assigneeId || undefined,
+        assigneeId: selectedMember?.userId,
+        assigneeUsername: selectedMember?.email,
         projectId: projectId || undefined,
       });
       toast.success("Task created");
@@ -52,7 +69,7 @@ export function CreateTaskForm({
       setTitle("");
       setDescription("");
       setDeadline("");
-      setAssigneeId("");
+      setAssigneeUserId("");
       setProjectId("");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to create task");
@@ -102,6 +119,7 @@ export function CreateTaskForm({
         onChange={(e) => {
           setTeamId(e.target.value);
           setProjectId("");
+          setAssigneeUserId("");
         }}
         className={selectClass + " w-full"}
         required
@@ -125,13 +143,19 @@ export function CreateTaskForm({
           </option>
         ))}
       </select>
-      <input
-        type="text"
-        placeholder="Assignee ID"
-        value={assigneeId}
-        onChange={(e) => setAssigneeId(e.target.value)}
-        className={inputClass}
-      />
+      <select
+        value={assigneeUserId}
+        onChange={(e) => setAssigneeUserId(e.target.value)}
+        className={selectClass + " w-full"}
+        disabled={!teamId}
+      >
+        <option value="">{teamId ? "No assignee" : "Select a team first"}</option>
+        {members.map((m) => (
+          <option key={m.userId} value={m.userId}>
+            {m.email}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         disabled={submitting}

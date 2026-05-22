@@ -20,9 +20,10 @@ import { useAuth } from "@/context/AuthContext";
 
 interface KanbanViewProps {
   teamFilter?: string;
+  assigneeFilter?: string;
 }
 
-export function KanbanView({ teamFilter }: KanbanViewProps) {
+export function KanbanView({ teamFilter, assigneeFilter }: KanbanViewProps) {
   const { token, user, isManager } = useAuth();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,13 +39,13 @@ export function KanbanView({ teamFilter }: KanbanViewProps) {
     setLoading(true);
     try {
       const data = await api.getTasks(token, teamFilter || undefined);
-      setTasks(data);
+      setTasks(assigneeFilter ? data.filter((t) => t.assigneeId === assigneeFilter) : data);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed to load tasks");
     } finally {
       setLoading(false);
     }
-  }, [token, teamFilter]);
+  }, [token, teamFilter, assigneeFilter]);
 
   useEffect(() => {
     loadTasks();
@@ -136,6 +137,10 @@ export function KanbanView({ teamFilter }: KanbanViewProps) {
             prev.map((t) => (t.taskId === updated.taskId ? updated : t))
           );
           setSelectedTask(updated);
+        }}
+        onDeleted={(taskId) => {
+          setTasks((prev) => prev.filter((t) => t.taskId !== taskId));
+          setSelectedTask(null);
         }}
       />
     </>
