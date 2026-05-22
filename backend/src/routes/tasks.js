@@ -4,6 +4,7 @@ const {
 } = require('@aws-sdk/lib-dynamodb');
 const { PutObjectCommand, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 const { S3Client } = require('@aws-sdk/client-s3');
+const { SNSClient, PublishCommand } = require('@aws-sdk/client-sns');
 const { getSignedUrl } = require('@aws-sdk/s3-request-presigner');
 const { v4: uuidv4 } = require('uuid');
 const docClient = require('../config/dynamodb');
@@ -15,6 +16,10 @@ const TASKS_TABLE = process.env.DYNAMODB_TABLE_TASKS;
 const AUDIT_TABLE = process.env.DYNAMODB_TABLE_AUDIT_LOG;
 
 const s3Client = new S3Client({ region: process.env.AWS_REGION || 'us-east-1' });
+
+const snsClient = new SNSClient({
+  region: process.env.AWS_REGION || 'us-east-1'
+});
 
 const TRANSITIONS = {
   ToDo: ['InProgress'],
@@ -44,7 +49,19 @@ router.post('/', requireManager(), async (req, res) => {
 
     await docClient.send(new PutCommand({ TableName: TASKS_TABLE, Item: task }));
 
-    // TODO: Nour (M4) — publish to SNS TaskAssigned-Topic here (T-09)
+    // TODO: Nour (M4) — publish to SNS TaskAssigned-Topic here (T-09) DONE!!!
+
+    if (assigneeId) {
+      await snsClient.send(new PublishCommand({
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Subject: 'New Task Assigned',
+        Message: JSON.stringify({
+          taskId: task.taskId,
+          assigneeId,
+          teamId,
+        }),
+      }));
+    }
 
     return res.status(201).json(task);
   } catch (err) {
@@ -143,7 +160,24 @@ router.patch('/:taskId', requireManager(), async (req, res) => {
 
     const updated = await docClient.send(new UpdateCommand(updateParams));
 
-    // TODO: Nour (M4) — if assigneeId changed, publish to SNS here (T-09)
+    // TODO: Nour (M4) — if assigneeId changed, publish to SNS here (T-09) DONE!!!
+
+    if (
+      assigneeId !== undefined &&
+      assigneeId !== taskResult.Item.assigneeId
+    ) {
+      await snsClient.send(new PublishCommand({
+        TopicArn: process.env.SNS_TOPIC_ARN,
+        Subject: 'Task Reassigned',
+        Message: JSON.stringify({
+          taskId,
+          assigneeId,
+          teamId: updated.Attributes.teamId,
+        }),
+      }));
+    }
+
+
 
     return res.status(200).json(updated.Attributes);
   } catch (err) {
